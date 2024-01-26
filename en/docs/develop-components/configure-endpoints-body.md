@@ -61,7 +61,7 @@ The `endpoints.yaml` file has a specific structure and contains the following de
 | **type**             | Required     | The type of traffic this endpoint is accepting, such as `REST`, `GraphQL`, `gRPC`, `UDP`or `TCP`. Currently, the MI preset supports only the `REST` type.                                         |
 | **networkVisibility**| Required     | The network level visibility of this endpoint, which defaults to `Project` if not specified. Accepted values are `Project`, `Organization`, or `Public`.|
 | **context**          | Required     | The context (base path) of the API that Choreo exposes via this endpoint.        |
-| **schemaFilePath**   | Required     |  The swagger definition file path. Defaults to the wildcard route if not provided. This field should be a relative path to the project path when using the **Java**, **Python**, **NodeJS**, **Go**, **PHP**, **Ruby**, and **WSO2 MI** buildpacks. For REST endpoint types, when using the **Ballerina** or **Dockerfile** buildpack, this field should be a relative path to the component root or Docker context.|
+| **schemaFilePath**   | Required     | The swagger definition file path. Defaults to the wildcard route if not provided. This field should be a relative path to the project path when using the **Java**, **Python**, **NodeJS**, **Go**, **PHP**, **Ruby**, and **WSO2 MI** buildpacks. For REST endpoint types, when using the **Ballerina** or **Dockerfile** buildpack, this field should be a relative path to the component root or Docker context.|
 
 #### Sample endpoints.yaml
 
@@ -103,6 +103,106 @@ endpoints:
   # This is only applicable to REST endpoint types.
   # The path should be relative to the docker context.
   schemaFilePath: greeting_openapi.yaml
+```
+
+### Introducing the Component Configuration File (Alpha Release)
+
+The `component-config.yaml` file extends the capabilities of component configuration, introducing support for both inbound (endpoints) and outbound connection definitions. This alpha release of the file offers enhanced configuration options for components.
+
+- **Inbound Configurations:** This section is dedicated to defining inbound connection configurations, specifically for endpoints. It fully supports the existing endpoints object schema.
+
+- **Outbound Configurations:** In this section, users can define outbound connection configurations, including service connection specifications. The Choreo internal marketplace enables the creation of connections with existing services. To learn more about Choreo Marketplace refer to the [documentation](https://wso2.com/choreo/docs/choreo-concepts/choreo-marketplace/#choreo-marketplace).
+
+*Alpha Release: It should be noted that this configuration file is currently in an experimental phase. Support for the existing schema may be either discontinued or modified in future releases.*
+
+### Learn the component-config.yaml file
+
+The `component-config.yaml` file has a specific structure and contains the following details:
+
+| Field                | Required     | Description                                                                      |
+|----------------------|--------------|----------------------------------------------------------------------------------|
+| **apiVersion**       | Required     | The version of the `component-config.yam` file, default to `core.choreo.dev/v1alpha1` |
+| **kind**             | Required     | The resource type of the file, default to `ComponentConfig`.                     |
+| **spec.inbound**     | Optional     | List of inbound connection configurations.                                       |
+| **spec.outbound**    | Optional     | List of outbound connection configurations.                                      |
+
+
+#### Inbound connection configurations (spec.inbound)
+
+The `spec.inbound` section facilitates the configuration of inbound connections, enabling the inclusion of a list of endpoints.
+The existing endpoints schema structure is supported. Refer to the endpoints schema in [documentation](#learn-the-endpointsyaml-file).
+
+#### Outbound connection configurations (spec.outbound)
+
+Within the `spec.outbound` section, you can define `serviceReferences`, which specify the service references available within the internal API marketplace.
+
+The `serviceReferences` schema has a specific structure and contains the following details:
+
+| Field                | Required     | Description                                                                      |
+|----------------------|--------------|----------------------------------------------------------------------------------|
+| **name**             | Required     | A unique name for the service reference.                                         |
+| **connectionConfig** | Required     | A unique name for the connection instance.                                       |
+| **env**              | Optional     | List of environment variable mappings that gets injected to the container.       |
+| **env.from**         | Required     | Key name of the connection configuration, generated by the system.               |
+| **env.to**           | Required     | Environment variables that get injected to the container.                        |
+
+!!! note
+    - In case both `component-config.yaml` and `endpoints.yaml` are defined in the .choreo path as mentioned, `component-config.yaml` file takes priority.
+
+#### Sample component-config.yaml
+
+**File location**:
+
+```bash
+<docker-build-context-path>/.choreo/component-config.yaml
+```
+
+!!! note
+    - For components built with Ballerina buildpack `docker-build-context-path` should be replaced with `component-root`. 
+    For example: `<component-root>/.choreo/component-config.yaml`
+
+    - For components built with WSO2 MI buildpack `docker-build-context-path` should be replaced with `<Project Path>`. 
+    For example: `<Project Path>/.choreo/component-config.yaml`
+
+**File content**:
+
+```yaml
+apiVersion: core.choreo.dev/v1alpha1
+kind: ComponentConfig
+spec:
+  # +optional Incoming connection details for the component (AKA Endpoints).
+  inbound:
+    # +required Unique name for the endpoint. (This name will be used when generating the managed API)
+    - name: Greeting Service
+      # +required Numeric port value that gets exposed via this endpoint
+      port: 9090
+      # +required Type of the traffic this endpoint is accepting. Example: REST, GraphQL, etc.
+      # Allowed values: REST, GraphQL, GRPC, TCP, UDP
+      type: REST
+      # +optional Network level visibility of this endpoint. Defaults to Project
+      # Accepted values: Project|Organization|Public.
+      visibility: Public
+      # +optional Context (base path) of the API that exposed via this endpoint.
+      # This is mandatory if the endpoint type is set to REST or GraphQL.
+      context: /greeting
+      # +optional Path to the schema definition file. Defaults to wild card route if not provided
+      # This is only applicable to REST endpoint types.
+      # The path should be relative to the docker context.
+      schemaFilePath: greeting_openapi.yaml
+  # +optional Outgoing connection details for the component.
+  outbound:
+    # +optional Defines the service references from the internal API marketplace.
+    serviceReferences:
+      # +required Name of the service reference.
+      - name: choreo:///apifirst/mttm/mmvhxd/ad088/v1.0/PUBLIC
+        # +required Name of the connection instance. This is an identifier
+        connectionConfig: 19d2648b-d29c-4452-afdd-1b9311e81412
+        # +optional Environment variables to be injected to the component from the connection configuration.
+        env:
+          # +required Key name of the connection configuration.
+          - from: ServiceURL
+            # +required Environment variable name that get injected to the container.
+            to: SERVICE_URL
 ```
 
 ## Expose endpoints as managed APIs
